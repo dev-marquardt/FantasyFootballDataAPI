@@ -2,11 +2,18 @@ package com.dev.marquardt;
 
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
+import com.google.common.util.concurrent.RateLimiter;
 import java.io.FileReader;
+import java.util.ArrayList;
+import java.util.List;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import java.io.FileWriter;
+import java.io.IOException;
 
 public class Data {
     private static String[][] teamList = new String[32][4];
-    private static String csvFilePath = "RosterLinks.csv";
+    private static final String csvFilePath = "RosterLinks.csv";
     private static Team[] teams = new Team[32];
 
     public static boolean updateData(){
@@ -51,16 +58,53 @@ public class Data {
 
                     teams[i] = temp;
 
-                    teamListUpdated = true;
+                    i++;
                 }
             } catch (Exception e) {
                 System.out.println("Error creating team objects:  " + e.getMessage());
             }
+
+            teamListUpdated = true;
         }
 
         boolean teamRostersUpdated = false;
         if(teamListUpdated) {
+            final double rateLimit = (20.0/60.0);
 
+            final RateLimiter rateLimiter = RateLimiter.create(rateLimit);
+
+            for(Team team : teams){
+                try {
+                    rateLimiter.acquire();
+
+                    boolean rostertsUpdated = team.updateRosters();
+
+                    if(!rostertsUpdated){
+                        System.out.println("Roster not updated: " + team.getTeam());
+                    }
+
+                }catch(Exception e){
+                    System.out.println("Error updating team roster: " + team.getTeam() + e.getMessage());
+                }
+            }
+
+            teamRostersUpdated = true;
+        }
+
+        boolean exportPlayerData = false;
+        if(teamRostersUpdated) {
+            List<Player> players = new ArrayList<Player>();
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+            try(FileWriter writer = new FileWriter("players.json")){
+                for(Team team : teams){
+                    gson.toJson(team.playerList, writer);
+                }
+            }catch(Exception e){
+                System.out.println("Error creating players file: " + e.getMessage());
+            }
+
+            exportPlayerData = true;
         }
 
         return dataUpdated;
