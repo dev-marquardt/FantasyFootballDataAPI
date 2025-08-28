@@ -63,7 +63,7 @@ public class Team {
                 if (endIndex != -1){
                     String comment = html.substring(startIndex +  start.length(), endIndex).trim();
 
-                    if (comment.contains("id=\"roster\"")){
+                    if (comment.contains("id=roster")){
                         doc = Jsoup.parse(comment);
                         break;
                     }

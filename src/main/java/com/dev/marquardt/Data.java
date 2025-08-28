@@ -77,9 +77,9 @@ public class Data {
                 try {
                     rateLimiter.acquire();
 
-                    boolean rostertsUpdated = team.updateRosters();
+                    boolean rostersUpdated = team.updateRosters();
 
-                    if(!rostertsUpdated){
+                    if(!rostersUpdated){
                         System.out.println("Roster not updated: " + team.getTeam());
                     }
 
