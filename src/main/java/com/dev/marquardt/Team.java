@@ -45,6 +45,11 @@ public class Team {
         }
 
         try (CloseableHttpClient client = HttpClients.createDefault()) {
+
+            if (rosterLink == null || rosterLink.trim().isEmpty()) {
+                System.err.println("Skipping roster update for team " + teamName + " due to invalid URL: " + rosterLink);
+                throw new RuntimeException("error in url");
+            }
             HttpGet request = new HttpGet(rosterLink);
             request.addHeader("User-Agent", "Email: dev.marquardt@gmail.com | Script: MyNFLScraper/1.0");
 
@@ -138,7 +143,10 @@ public class Team {
                 rostersUpdated = true;
             }
         } catch (Exception e) {
+            e.printStackTrace();
+
             throw new RuntimeException(e);
+
         }
 
         return rostersUpdated;

@@ -26,14 +26,18 @@ public class Data {
             String[] row;
             int i = 0;
 
-            while(reader.readNext() != null){
-                row = reader.readNext();
+            while((row = reader.readNext()) != null){
 
                 if(i > 31){
                     break;
                 }
 
                 teamList[i] = row;
+
+                for(String item : row){
+                    System.out.println(item);
+                }
+
 
                 i++;
             }
@@ -42,6 +46,7 @@ public class Data {
 
         }catch(Exception e){
             System.out.println("Error reading csv: " + e.getMessage());
+            e.printStackTrace();
         }
 
         boolean teamListUpdated = false;
@@ -56,12 +61,15 @@ public class Data {
 
                     Team temp = new Team(row[0], row[1], 2025, row[3]);
 
+                    System.out.println(row[0] + "\n" + row[1] + "\n" + row[2] + "\n" +row[3]);
+
                     teams[i] = temp;
 
                     i++;
                 }
             } catch (Exception e) {
                 System.out.println("Error creating team objects:  " + e.getMessage());
+                e.printStackTrace();
             }
 
             teamListUpdated = true;
@@ -85,6 +93,7 @@ public class Data {
 
                 }catch(Exception e){
                     System.out.println("Error updating team roster: " + team.getTeam() + e.getMessage());
+                    e.printStackTrace();
                 }
             }
 
@@ -102,6 +111,7 @@ public class Data {
                 }
             }catch(Exception e){
                 System.out.println("Error creating players file: " + e.getMessage());
+                e.printStackTrace();
             }
 
             exportPlayerData = true;
