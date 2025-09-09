@@ -54,7 +54,7 @@ public class Data {
                         break;
                     }
 
-                    Team temp = new Team(row[0], row[1], Integer.parseInt(row[2]), row[3]);
+                    Team temp = new Team(row[0], row[1], 2025, row[3]);
 
                     teams[i] = temp;
 
