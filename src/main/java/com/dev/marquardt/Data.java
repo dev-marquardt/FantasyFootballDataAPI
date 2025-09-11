@@ -1,122 +1,154 @@
 package com.dev.marquardt;
 
-import com.opencsv.CSVReader;
-import com.opencsv.exceptions.CsvValidationException;
-import com.google.common.util.concurrent.RateLimiter;
-import java.io.FileReader;
-import java.util.ArrayList;
-import java.util.List;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
 import java.io.FileWriter;
-import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 public class Data {
-    private static String[][] teamList = new String[32][4];
-    private static final String csvFilePath = "RosterLinks.csv";
-    private static Team[] teams = new Team[32];
 
-    public static boolean updateData(){
-        boolean dataUpdated = false;
+    // only run once per day due to size of database, but this to update the initil database
+    protected static boolean updatePlayerDatabase() throws RuntimeException {
 
-        boolean csvUpdated = false;
-        try{
-            CSVReader reader = new CSVReader(new FileReader(csvFilePath));
+        boolean output = false;
 
-            String[] row;
-            int i = 0;
+        StringBuilder sb = new StringBuilder();
 
-            while((row = reader.readNext()) != null){
+        Map<Integer, JSONObject> jsonPlayerData = new HashMap<Integer, JSONObject>();
 
-                if(i > 31){
-                    break;
-                }
+        Integer maxPlayerId = -1;
 
-                teamList[i] = row;
+        try {
+            URL url = new URL(Settings.sleeperURL);
 
-                for(String item : row){
-                    System.out.println(item);
-                }
+            BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
 
+            String line;
 
-                i++;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
             }
 
-            csvUpdated = true;
+            reader.close();
 
-        }catch(Exception e){
-            System.out.println("Error reading csv: " + e.getMessage());
-            e.printStackTrace();
-        }
+            JSONObject jsonObject = new JSONObject(sb.toString());
 
-        boolean teamListUpdated = false;
-        if(csvUpdated) {
-            try {
-                int i = 0;
+            for(String key :  jsonObject.keySet()) {
+                if(key.matches("\\d+")){
+                    int playerID = Integer.parseInt(key);
 
-                for (String[] row : teamList) {
-                    if (i > 31) {
-                        break;
-                    }
+                    JSONObject playerData = jsonObject.getJSONObject(key);
 
-                    Team temp = new Team(row[0], row[1], 2025, row[3]);
+                        jsonPlayerData.put(playerID, playerData);
 
-                    System.out.println(row[0] + "\n" + row[1] + "\n" + row[2] + "\n" +row[3]);
+                        if(playerID > maxPlayerId){
+                            maxPlayerId = playerID;
+                        }
 
-                    teams[i] = temp;
+                        playerData.remove("kalshi_id");
+                        playerData.remove("rotoworld_id");
+                        playerData.remove("competitions");
+                        playerData.remove("opta_id");
+                        playerData.remove("team_changed_at");
+                        playerData.remove("fantasy_data_id");
+                        playerData.remove("swish_id");
+                        playerData.remove("gsis_id");
+                        playerData.remove("oddsjam_id");
+                        playerData.remove("stats_id");
+                        playerData.remove("hashtag");
+                        playerData.remove("metadata");
+                        playerData.remove("rotowire_id");
+                        playerData.remove("pandascore_id");
+                        playerData.remove("team_abbr");
+                        playerData.remove("fantasy_positions");
+                        playerData.remove("player_id");
 
-                    i++;
-                }
-            } catch (Exception e) {
-                System.out.println("Error creating team objects:  " + e.getMessage());
-                e.printStackTrace();
-            }
-
-            teamListUpdated = true;
-        }
-
-        boolean teamRostersUpdated = false;
-        if(teamListUpdated) {
-            final double rateLimit = (20.0/60.0);
-
-            final RateLimiter rateLimiter = RateLimiter.create(rateLimit);
-
-            for(Team team : teams){
-                try {
-                    rateLimiter.acquire();
-
-                    boolean rostersUpdated = team.updateRosters();
-
-                    if(!rostersUpdated){
-                        System.out.println("Roster not updated: " + team.getTeam());
-                    }
-
-                }catch(Exception e){
-                    System.out.println("Error updating team roster: " + team.getTeam() + e.getMessage());
-                    e.printStackTrace();
                 }
             }
 
-            teamRostersUpdated = true;
-        }
+            try{
+                Connection  conn = DriverManager.getConnection(Settings.dbURL, Settings.dbUser, Settings.dbPass);
 
-        boolean exportPlayerData = false;
-        if(teamRostersUpdated) {
-            List<Player> players = new ArrayList<Player>();
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                final String createTable = new String(
+                        "CREATE TABLE IF NOT EXISTS nflPlayerData (" +
+                                "playerID INT UNIQUE NOT NULL PRIMARY KEY," +
+                                "firstName VARCHAR(255) NOT NULL," +
+                                "birthState VARCHAR(255)," +
+                                "depthChartPosition VARCHAR(50)," +
+                                "team VARCHAR(50)," +
+                                "age INT," +
+                                "active BOOLEAN," +
+                                "depthChartOrder INT," +
+                                "weight INT," +
+                                "college VARCHAR(255)," +
+                                "birthCity VARCHAR(255)," +
+                                "injuryNotes VARCHAR(MAX)," +
+                                "birthDate VARCHAR(50)," +
+                                "status VARCHAR(50)," +
+                                "sport VARCHAR(50)," +
+                                "newsUpdated BIGINT," +
+                                "height VARCHAR(10)," +
+                                "birthCountry VARCHAR(100)," +
+                                "yearsExp INT," +
+                                "searchFirstName VARCHAR(255)," +
+                                "number INT," +
+                                "injuryBodyPart VARCHAR(255)," +
+                                "practiceDesc VARCHAR(255)," +
+                                "practicePart VARCHAR(255)," +
+                                "injuryStartDate VARCHAR(50)," +
+                                "searchRank INT," +
+                                "espnId INT," +
+                                "sportsRadarId VARCHAR(255)," +
+                                "yahooId INT," +
+                                "position VARCHAR(10)," +
+                                "highSchool VARCHAR(255)," +
+                                "searchFullName VARCHAR(255)," +
+                                "searchLastName VARCHAR(255)," +
+                                "lastName VARCHAR(255) NOT NULL," +
+                                "fullName VARCHAR(255) NOT NULL," +
+                                "INDEX idxFullName (fullName)," +
+                                "INDEX idxTeam (team)," +
+                                "injuryStatus VARCHAR(255))"
+                );
 
-            try(FileWriter writer = new FileWriter("players.json")){
-                for(Team team : teams){
-                    gson.toJson(team.playerList, writer);
-                }
+                conn.createStatement().execute(createTable);
+
             }catch(Exception e){
-                System.out.println("Error creating players file: " + e.getMessage());
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
 
-            exportPlayerData = true;
+            if(maxPlayerId == -1){
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+                try(FileWriter fw = new FileWriter("playerData.json")){
+                    gson.toJson(jsonPlayerData, fw);
+
+                    fw.close();
+
+                    output = true;
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        } catch(Exception e){
+            throw new RuntimeException(e);
         }
 
-        return dataUpdated;
+        if(maxPlayerId == -1){
+            throw new RuntimeException("Error reading playerData.json");
+        }
+
+        return output;
     }
 }
