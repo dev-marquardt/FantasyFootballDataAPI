@@ -8,15 +8,27 @@ import java.io.BufferedReader;
 import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.time.*;
 
 public class Data {
+
+    private static String dateUpdated = null;
+
+    private static Connection conn = null;
+
+    public static void init() throws RuntimeException {
+
+        if(conn == null) {
+            try {
+                conn = DriverManager.getConnection(Settings.dbURL, Settings.dbUser, Settings.dbPass);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 
     // only run once per day due to size of database, but this to update the initil database
     protected static boolean updatePlayerDatabase() throws RuntimeException {
@@ -25,7 +37,7 @@ public class Data {
 
         StringBuilder sb = new StringBuilder();
 
-        Map<Integer, JSONObject> jsonPlayerData = new HashMap<Integer, JSONObject>();
+        Map<Integer, Object> jsonPlayerData = new HashMap<Integer, Object>();
 
         Integer maxPlayerId = -1;
 
@@ -50,12 +62,6 @@ public class Data {
 
                     JSONObject playerData = jsonObject.getJSONObject(key);
 
-                        jsonPlayerData.put(playerID, playerData);
-
-                        if(playerID > maxPlayerId){
-                            maxPlayerId = playerID;
-                        }
-
                         playerData.remove("kalshi_id");
                         playerData.remove("rotoworld_id");
                         playerData.remove("competitions");
@@ -74,11 +80,15 @@ public class Data {
                         playerData.remove("fantasy_positions");
                         playerData.remove("player_id");
 
+
+                    jsonPlayerData.put(playerID, playerData.toMap());
+
+                    if(playerID > maxPlayerId){
+                        maxPlayerId = playerID;
+                    }
+
                 }
             }
-
-            try{
-                Connection  conn = DriverManager.getConnection(Settings.dbURL, Settings.dbUser, Settings.dbPass);
 
                 final String createTable = new String(
                         "CREATE TABLE IF NOT EXISTS nflPlayerData (" +
@@ -93,7 +103,7 @@ public class Data {
                                 "weight INT," +
                                 "college VARCHAR(255)," +
                                 "birthCity VARCHAR(255)," +
-                                "injuryNotes VARCHAR(MAX)," +
+                                "injuryNotes CLOB," +
                                 "birthDate VARCHAR(50)," +
                                 "status VARCHAR(50)," +
                                 "sport VARCHAR(50)," +
@@ -117,19 +127,18 @@ public class Data {
                                 "searchLastName VARCHAR(255)," +
                                 "lastName VARCHAR(255) NOT NULL," +
                                 "fullName VARCHAR(255) NOT NULL," +
-                                "INDEX idxFullName (fullName)," +
-                                "INDEX idxTeam (team)," +
                                 "injuryStatus VARCHAR(255))"
                 );
 
+            try{
                 conn.createStatement().execute(createTable);
 
             }catch(Exception e){
                 throw new RuntimeException(e);
             }
 
-            if(maxPlayerId == -1){
-                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            if(maxPlayerId != -1){
+                Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
                 try(FileWriter fw = new FileWriter("playerData.json")){
                     gson.toJson(jsonPlayerData, fw);
@@ -149,6 +158,50 @@ public class Data {
             throw new RuntimeException("Error reading playerData.json");
         }
 
+        dateUpdated = Long.toString(Instant.now().getEpochSecond());
+
         return output;
+    }
+
+    // this is a backup function, use playerID for main usage
+    protected static JSONObject getPlayer(int playerId) throws RuntimeException{
+
+        JSONObject jsonPlayerData = null;
+        Map<String, Object> playerData = new HashMap<>();
+
+        String query = "SELECT * FROM nflPlayerData WHERE searchFullName = ?";
+
+        try{
+            PreparedStatement statement = conn.prepareStatement(query);
+            statement.setInt(1, playerId);
+            ResultSet rs = statement.executeQuery();
+
+            if(rs.next()){
+                ResultSetMetaData metaData = rs.getMetaData();
+
+                int columnCount = metaData.getColumnCount();
+
+                for(int i = 1; i <= columnCount; i++){
+                    String columnName = metaData.getColumnName(i);
+                    Object value = rs.getObject(i);
+                    playerData.put(columnName, value);
+                }
+
+                if(rs.next()){
+                    throw new RuntimeException("Players with duplicate ID's");
+                }
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        jsonPlayerData = new  JSONObject(playerData);
+
+        return jsonPlayerData;
+    }
+
+    public static String getDateUpdated() {
+        return dateUpdated;
     }
 }
