@@ -1,7 +1,6 @@
 package com.dev.marquardt;
 
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class Settings {
 
@@ -15,6 +14,10 @@ public class Settings {
     protected static final String dbPass;
 
     protected static final String sleeperURL;
+
+    protected static final String[] allPFRSeasonStatsURL;
+
+    protected static final String currSeason;
 
     static {
             try{
@@ -33,5 +36,22 @@ public class Settings {
             dbUser = properties.getProperty("spring.datasource.username");
             dbPass = properties.getProperty("spring.datasource.password");
             sleeperURL = properties.getProperty("sleeper.url");
+
+            currSeason = properties.getProperty("nfl.currentseason");
+
+            allPFRSeasonStatsURL = new String[]{
+                    String.format(properties.getProperty("pfr.seasonpassing.url"), currSeason),
+                    String.format(properties.getProperty("pfr.seasonscrimmage.url"),currSeason),
+                    String.format(properties.getProperty("pfr.seasondefense.url"),currSeason),
+                    String.format(properties.getProperty("pfr.advancedseasonpassing.url"),currSeason),
+                    String.format(properties.getProperty("pfr.advancedseasonrushing.url"),currSeason),
+                    String.format(properties.getProperty("pfr.advancedseasonreceiving.url"),currSeason),
+                    String.format(properties.getProperty("pfr.advancedseasondefense.url"),currSeason),
+                    String.format(properties.getProperty("pfr.advancedteamstats.url"),currSeason),
+                    String.format(properties.getProperty("pfr.fantasyplayerranks.url"),currSeason),
+                    String.format(properties.getProperty("pfr.redzonepassing.url"),currSeason),
+                    String.format(properties.getProperty("pfr.redzonerushing.url"),currSeason),
+                    String.format(properties.getProperty("pfr.redzonereceiving.url"), currSeason)
+            };
     }
 }
